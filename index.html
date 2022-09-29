@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three JS</title>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+    <div id="title"><h1></h1></div>
+    <canvas class="canvas" id="canvas"></canvas>
+    <canvas id="canvas-canvas"></canvas>
+
+    <script src="three.js"></script>
+    <script type="module" src="GLTFLoader.js"></script>
+    <script type="module">
+        
+        //////////////////////////////////////////////////////////////////////////////////////
+
+const canvas2 = document.getElementById('canvas');
+// console.log(canvas2);
+var ctx = canvas2.getContext('2d');
+// const ctx1 = canvas2[0].getContext('2d');
+canvas2.width = window.innerWidth;
+canvas2.height = window.innerHeight;
+
+let adjustX = 60;
+let adjustY = 35;
+let sizeMultiple = 6;
+
+const mouse2 = { 
+    x : null,
+    y : null,
+    radius : 100
+};
+window.addEventListener('mousemove', function(mouseEvent){
+    mouse2.x = mouseEvent.x;
+    mouse2.y = mouseEvent.y;
+})
+window.addEventListener('mousedown', function(){ 
+    mouse2.radius = 150;
+})
+window.addEventListener('mouseup', function(){ 
+    mouse2.radius = 100;
+})
+
+// console.log(ctx);
+
+ctx.fillStyle = 'white';
+ctx.font = '25px Verdana';
+ctx.fillText('RIVAPPA', 0, 30);
+const textColorData = ctx.getImageData(0, 0, 400, 400);
+ctx.clearRect(0, 0, 400, 400);
+
+let particlesArray = [];
+class Particle{ 
+    constructor(x, y){ 
+        this.x = x;
+        this.y = y;
+        this.size = 3;
+        this.baseX = this.x;
+        this.baseY = this.y;
+        this.density = Math.random()*40 + 5;
+    }
+    update(){ 
+        let dx = mouse2.x - this.x;
+        let dy = mouse2.y - this.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        
+        let perXdirection = dx/dist;
+        let perYdirection = dy/dist;
+        let maxDist = mouse2.radius;
+        let force = (maxDist - dist)/maxDist;
+        let directionX = perXdirection*force*this.density;
+        let directionY = perYdirection*force*this.density;
+
+        if(dist < mouse2.radius){ 
+            this.x -= directionX;
+            this.y -= directionY;
+        }else{ 
+            if(this.x !== this.baseX){ 
+                let dx = this.x - this.baseX;
+                this.x -= dx/10;
+            }
+            if(this.y !== this.baseY){ 
+                let dy = this.y - this.baseY;
+                this.y -= dy/10;
+            }
+        }
+        this.draw();
+    }
+    draw(){ 
+        ctx.fillStyle = "rgb(140, 140, 140)";
+       // ctx.fillStyle = 'white';
+        //ctx.fillStyle = 'rgb(22, 98, 105)';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.closePath();
+        ctx.fill();
+    }
+}
+
+function init(){ 
+    particlesArray = [];
+    let textDataColumn = textColorData.height;
+    for(let y=0; y<textDataColumn; y++){ 
+        let textDataRow = textColorData.width;
+        for(let x=0; x<textDataRow; x++){ 
+             if(textColorData.data[(y*4*textColorData.width) + (x*4) + 3]>128){ 
+                 let positionX = x + adjustX;
+                 let positionY = y + adjustY; 
+                 particlesArray.push(new Particle(positionX*sizeMultiple, positionY*sizeMultiple));
+             }
+        }
+    }
+}
+init();
+
+function handleParticles(){ 
+    // console.log("handle particles");
+    for(let i=0; i<particlesArray.length; i++){ 
+        particlesArray[i].update();
+    }
+}
+
+function connect(){ 
+    let lineStrength = 1;
+    for(let a=0; a<particlesArray.length; a++){ 
+         for(let b=a; b<particlesArray.length; b++){ 
+             let dx = particlesArray[a].x - particlesArray[b].x;
+             let dy = particlesArray[a].y - particlesArray[b].y;
+             let dist = Math.sqrt(dx*dx + dy*dy);
+             let maxDist = 25;
+             lineStrength = 1-(dist/maxDist);
+             if(dist < maxDist){ 
+                 //ctx.strokeStyle = 'rgba(22, 98, 105,'+ lineStrength +')';
+                 // ctx.strokeStyle = 'white';
+                 ctx.strokeStyle = 'rgb(140, 140, 140,'+ lineStrength +')';
+                 ctx.lineWidth = 2;
+                 ctx.beginPath();
+                 ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                 ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                 ctx.stroke();
+             }
+         }
+    }
+}
+
+function animate2(){ 
+    // console.log("animate2");
+    // ctx.clearRect(0, 0, canvas.width, canvas.height); 
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    handleParticles();
+    connect();
+    requestAnimationFrame(animate2);
+}
+
+        //////////////////////////////////////////////////////////////////////////////////////
+        import {GLTFLoader} from "./GLTFLoader.js";
+        const canvas = document.getElementById("canvas-canvas");
+        // console.log(canvas);
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera( 
+            75,
+            window.innerWidth/window.innerHeight,
+            0.01,
+            1000
+        );
+        var renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        // document.body.appendChild(renderer.domElement);
+
+
+        const mouse = { 
+            x : window.innerWidth/2,
+            y : window.innerHeight/2
+        };
+        const lastMouse = { 
+            x: window.innerWidth/2,
+            y: window.innerHeight/2
+        };
+        window.addEventListener("mousemove", function(mouseEvent){ 
+            mouse.x = mouseEvent.x;
+            mouse.y = mouseEvent.y;
+        });
+        window.addEventListener("resize", function(){ 
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+
+
+        var loader = new GLTFLoader();
+        let obj = undefined;
+        loader.load("scene.gltf", function(gltf){
+            obj = gltf.scene;
+            obj.position.set(1.5, 0, 6);
+            // obj.rotation.y += 0.02;
+            scene.add(obj);
+
+            var light = new THREE.HemisphereLight(0xffffff, 0x000000, 5);
+            light.position.set(-10, 6, 8);
+            scene.add(light);
+            var light2 = new THREE.HemisphereLight(0x24a0ab, 0x000000, 0);
+            light2.position.set(1.2, -10, 0);
+            scene.add(light2);
+            camera.position.set(1.2, 10, 30);
+
+            var currentFrameRender = flip;
+            requestAnimationFrame(currentFrameRender);
+            setTimeout(() => {
+                currentFrameRender = animate;
+                requestAnimationFrame(animate);
+                requestAnimationFrame(animate2);
+             },7600);
+            
+            let deepDive = 1;
+            function flip(){
+                if(obj.rotation.y <= 3.0){ 
+                    obj.rotation.y += 0.016;
+                    camera.position.z -= 0.015; 
+                }else{ 
+                    if(camera.position.z > 5.8 && deepDive){ 
+                        camera.position.z -= 0.09; 
+                    }else{ 
+                        camera.position.x = 24;
+                        camera.position.y = 6;
+                        camera.position.z = 30;
+                        obj.rotation.y += 0.04;
+                        deepDive = 0;
+                    }
+                }
+                renderer.render(scene, camera);
+                requestAnimationFrame(currentFrameRender);
+            }
+            function animate(){ 
+                let dx = lastMouse.x - mouse.x;
+                let dy = lastMouse.y - mouse.y;
+                
+                if(dx !== 0){ 
+                     obj.rotateY(dx/1500);
+                }
+                if(dy !== 0){ 
+                    obj.rotateX(dy/15000);
+                }
+                
+                lastMouse.x = mouse.x;
+                lastMouse.y = mouse.y;
+                renderer.render(scene, camera);
+                requestAnimationFrame(currentFrameRender);
+            }
+        });
+        /////////////////////////////////////////////////////////////////////////////// 
+    </script>
+</body>
+</html>
